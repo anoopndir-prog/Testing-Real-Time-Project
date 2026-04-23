@@ -16,6 +16,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from tools.excel_to_word_converter import convert
+
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD  # type: ignore
 except Exception:  # pragma: no cover
@@ -27,12 +29,12 @@ try:
 except Exception:  # pragma: no cover
     Calendar = None
 
-from tools.excel_to_word_converter import convert
-
 
 APP_TITLE = "SKF Test Report Generator"
-TEMPLATE_RELATIVE_PATH = Path("assets") / "Project Specification - Template.docx"
-DECISION_RULE_SOURCE_RELATIVE_PATH = Path("assets") / "Project Specification - Decision Rule Source.docx"
+TEMPLATE_RELATIVE_PATH = Path(
+    "assets") / "Project Specification - Template.docx"
+DECISION_RULE_SOURCE_RELATIVE_PATH = Path(
+    "assets") / "Project Specification - Decision Rule Source.docx"
 
 BG_DARKEST = "#050505"
 BG_SHINY = "#0c0c0c"
@@ -117,7 +119,8 @@ class RoundedButton(tk.Canvas):
 
     def _draw(self) -> None:
         self.delete("all")
-        self._rounded_rect(2, 2, self._width - 2, self._height - 2, self._radius, self._current_color)
+        self._rounded_rect(2, 2, self._width - 2, self._height -
+                           2, self._radius, self._current_color)
         self.create_text(
             self._width // 2,
             self._height // 2,
@@ -221,7 +224,8 @@ def _write_instruction_pdf(output_path: Path) -> None:
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
-        b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"\nendstream",
+        b"<< /Length " + str(len(stream)).encode("ascii") +
+        b" >>\nstream\n" + stream + b"\nendstream",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     ]
 
@@ -260,7 +264,8 @@ class ReportGeneratorApp:
 
         self.excel_path: Path | None = None
         self.template_path = _resource_path(TEMPLATE_RELATIVE_PATH)
-        self.decision_rule_source_path = _resource_path(DECISION_RULE_SOURCE_RELATIVE_PATH)
+        self.decision_rule_source_path = _resource_path(
+            DECISION_RULE_SOURCE_RELATIVE_PATH)
 
         today = dt.date.today().strftime("%d/%m/%Y")
         self.report_date_var = tk.StringVar(value=today)
@@ -304,20 +309,26 @@ class ReportGeneratorApp:
         meta_row = tk.Frame(center, bg=BG_DARKEST)
         meta_row.pack(fill="x", pady=(0, 16))
 
-        self._add_date_field(meta_row, "Date", self.report_date_var, 0, allow_clear=False, row=0)
-        self._add_text_field(meta_row, "Revision", self.revision_var, 1, width=8, numeric_only=True, row=0)
-        self._add_date_field(meta_row, "Revision Date", self.revision_date_var, 2, allow_clear=True, row=0)
-        self._add_text_field(meta_row, "Project No.", self.project_no_var, 3, width=18, numeric_only=False, row=0)
+        self._add_date_field(
+            meta_row, "Date", self.report_date_var, 0, allow_clear=False, row=0)
+        self._add_text_field(
+            meta_row, "Revision", self.revision_var, 1, width=8, numeric_only=True, row=0)
+        self._add_date_field(meta_row, "Revision Date",
+                             self.revision_date_var, 2, allow_clear=True, row=0)
+        self._add_text_field(meta_row, "Project No.", self.project_no_var,
+                             3, width=18, numeric_only=False, row=0)
         self._add_dropdown_field(
             meta_row,
             "Tooling Lead Time",
             self.tooling_lead_time_var,
             0,
-            values=["Available"] + [f"{i} Week" if i == 1 else f"{i} Weeks" for i in range(1, 11)],
+            values=["Available"] + [f"{i} Week" if i ==
+                                    1 else f"{i} Weeks" for i in range(1, 11)],
             width=13,
             row=1,
         )
-        self._add_text_field(meta_row, "Project Leader", self.project_leader_var, 1, width=22, numeric_only=False, row=1)
+        self._add_text_field(meta_row, "Project Leader",
+                             self.project_leader_var, 1, width=22, numeric_only=False, row=1)
 
         self.attach_box = tk.Frame(
             center,
@@ -373,17 +384,20 @@ class ReportGeneratorApp:
         button_area = tk.Frame(center, bg=BG_DARKEST)
         button_area.pack(pady=(28, 0))
 
-        self.word_btn = RoundedButton(button_area, "Generate Report in Word", self._generate_word)
+        self.word_btn = RoundedButton(
+            button_area, "Generate Report in Word", self._generate_word)
         self.word_btn.pack(pady=(0, 14))
 
-        self.pdf_btn = RoundedButton(button_area, "Generate Report in PDF", self._generate_pdf)
+        self.pdf_btn = RoundedButton(
+            button_area, "Generate Report in PDF", self._generate_pdf)
         self.pdf_btn.pack(pady=(0, 14))
 
         self.exit_btn = RoundedButton(button_area, "Exit", self.root.destroy)
         self.exit_btn.pack()
 
     def _build_menu(self, parent: tk.Widget) -> None:
-        menu_bar = tk.Frame(parent, bg="#0f0f0f", height=42, highlightbackground="#1d1d1d", highlightthickness=1)
+        menu_bar = tk.Frame(parent, bg="#0f0f0f", height=42,
+                            highlightbackground="#1d1d1d", highlightthickness=1)
         menu_bar.pack(fill="x", side="top")
         menu_bar.pack_propagate(False)
 
@@ -404,7 +418,8 @@ class ReportGeneratorApp:
             cursor="hand2",
         )
         file_btn.pack(side="left", pady=2)
-        file_menu = tk.Menu(file_btn, tearoff=0, bg="#151515", fg="#ebebeb", activebackground="#1f1f1f")
+        file_menu = tk.Menu(file_btn, tearoff=0, bg="#151515",
+                            fg="#ebebeb", activebackground="#1f1f1f")
         file_menu.add_command(label="Reset", command=self._reset_selection)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.destroy)
@@ -424,8 +439,10 @@ class ReportGeneratorApp:
             cursor="hand2",
         )
         help_btn.pack(side="left", pady=2)
-        help_menu = tk.Menu(help_btn, tearoff=0, bg="#151515", fg="#ebebeb", activebackground="#1f1f1f")
-        help_menu.add_command(label="Download Work Instruction (PDF)", command=self._download_work_instruction)
+        help_menu = tk.Menu(help_btn, tearoff=0, bg="#151515",
+                            fg="#ebebeb", activebackground="#1f1f1f")
+        help_menu.add_command(
+            label="Download Work Instruction (PDF)", command=self._download_work_instruction)
         help_btn.configure(menu=help_menu)
 
     def _add_text_field(
@@ -439,7 +456,8 @@ class ReportGeneratorApp:
         row: int = 0,
     ) -> None:
         field = tk.Frame(parent, bg=BG_DARKEST)
-        field.grid(row=row, column=column, padx=8, pady=(0, 8) if row == 0 else (0, 0), sticky="w")
+        field.grid(row=row, column=column, padx=8, pady=(
+            0, 8) if row == 0 else (0, 0), sticky="w")
 
         tk.Label(
             field,
@@ -478,7 +496,8 @@ class ReportGeneratorApp:
         row: int = 0,
     ) -> None:
         field = tk.Frame(parent, bg=BG_DARKEST)
-        field.grid(row=row, column=column, padx=8, pady=(0, 8) if row == 0 else (0, 0), sticky="w")
+        field.grid(row=row, column=column, padx=8, pady=(
+            0, 8) if row == 0 else (0, 0), sticky="w")
 
         tk.Label(
             field,
@@ -488,7 +507,8 @@ class ReportGeneratorApp:
             font=("Segoe UI", 10, "bold"),
         ).pack(anchor="w", pady=(0, 5))
 
-        combo = ttk.Combobox(field, textvariable=var, values=values, width=width, state="readonly")
+        combo = ttk.Combobox(field, textvariable=var,
+                             values=values, width=width, state="readonly")
         combo.pack(anchor="w", ipady=2)
 
     def _add_date_field(
@@ -501,7 +521,8 @@ class ReportGeneratorApp:
         row: int = 0,
     ) -> None:
         field = tk.Frame(parent, bg=BG_DARKEST)
-        field.grid(row=row, column=column, padx=8, pady=(0, 8) if row == 0 else (0, 0), sticky="w")
+        field.grid(row=row, column=column, padx=8, pady=(
+            0, 8) if row == 0 else (0, 0), sticky="w")
 
         tk.Label(
             field,
@@ -526,7 +547,8 @@ class ReportGeneratorApp:
             cursor="hand2",
         )
         date_entry.pack(anchor="w", ipady=4)
-        date_entry.bind("<Button-1>", lambda _e: self._open_calendar(var, allow_clear=allow_clear))
+        date_entry.bind(
+            "<Button-1>", lambda _e: self._open_calendar(var, allow_clear=allow_clear))
 
     def _validate_digits(self, proposed: str) -> bool:
         return proposed == "" or proposed.isdigit()
@@ -549,7 +571,8 @@ class ReportGeneratorApp:
         selected = target_var.get().strip()
         today = dt.date.today()
         try:
-            current_date = dt.datetime.strptime(selected, "%d/%m/%Y").date() if selected else today
+            current_date = dt.datetime.strptime(
+                selected, "%d/%m/%Y").date() if selected else today
         except ValueError:
             current_date = today
 
@@ -630,7 +653,8 @@ class ReportGeneratorApp:
         candidate = Path(str(dropped_items[0])).expanduser()
         if self._set_excel_if_valid(candidate):
             return
-        messagebox.showwarning("Invalid File", "Please drop a valid Excel file (.xlsm or .xlsx).")
+        messagebox.showwarning(
+            "Invalid File", "Please drop a valid Excel file (.xlsm or .xlsx).")
 
     def _attach_excel(self, _event=None) -> None:
         downloads = Path.home() / "Downloads"
@@ -644,7 +668,8 @@ class ReportGeneratorApp:
 
         selected_path = Path(selected)
         if not self._set_excel_if_valid(selected_path):
-            messagebox.showwarning("Invalid File", "Please select a valid Excel file (.xlsm or .xlsx).")
+            messagebox.showwarning(
+                "Invalid File", "Please select a valid Excel file (.xlsm or .xlsx).")
 
     def _set_excel_if_valid(self, file_path: Path) -> bool:
         if not file_path.exists() or file_path.suffix.lower() not in {".xlsm", ".xlsx"}:
@@ -668,15 +693,18 @@ class ReportGeneratorApp:
 
     def _ensure_inputs(self) -> bool:
         if self.excel_path is None:
-            messagebox.showwarning("Attach Excel", "Please attach an Excel file first.")
+            messagebox.showwarning(
+                "Attach Excel", "Please attach an Excel file first.")
             return False
 
         if not self.project_no_var.get().strip():
-            messagebox.showwarning("Project No.", "Please enter Project No. (e.g., TR26-0002-BTS).")
+            messagebox.showwarning(
+                "Project No.", "Please enter Project No. (e.g., TR26-0002-BTS).")
             return False
 
         if not self.project_leader_var.get().strip():
-            messagebox.showwarning("Project Leader", "Please enter Project Leader name.")
+            messagebox.showwarning(
+                "Project Leader", "Please enter Project Leader name.")
             return False
 
         if not self.revision_var.get().strip():
@@ -717,9 +745,11 @@ class ReportGeneratorApp:
                     tooling_lead_time=self.tooling_lead_time_var.get().strip() or None,
                     decision_rule_source_path=self.decision_rule_source_path if self.decision_rule_source_path.exists() else None,
                 )
-            messagebox.showinfo("Success", f"Word report generated and downloaded to:\n{out_path}")
+            messagebox.showinfo(
+                "Success", f"Word report generated and downloaded to:\n{out_path}")
         except Exception as exc:
-            messagebox.showerror("Generation Failed", f"Could not generate Word report.\n\n{exc}")
+            messagebox.showerror("Generation Failed",
+                                 f"Could not generate Word report.\n\n{exc}")
 
     def _generate_pdf(self) -> None:
         if not self._ensure_inputs():
@@ -743,7 +773,8 @@ class ReportGeneratorApp:
                     decision_rule_source_path=self.decision_rule_source_path if self.decision_rule_source_path.exists() else None,
                 )
                 _convert_docx_to_pdf(temp_docx, out_pdf_path)
-            messagebox.showinfo("Success", f"PDF report generated and downloaded to:\n{out_pdf_path}")
+            messagebox.showinfo(
+                "Success", f"PDF report generated and downloaded to:\n{out_pdf_path}")
         except Exception as exc:
             messagebox.showerror(
                 "Generation Failed",
@@ -753,12 +784,15 @@ class ReportGeneratorApp:
             )
 
     def _download_work_instruction(self) -> None:
-        output_path = self._default_download_named("SKF Report Generator - Work Instruction.pdf")
+        output_path = self._default_download_named(
+            "SKF Report Generator - Work Instruction.pdf")
         try:
             _write_instruction_pdf(output_path)
-            messagebox.showinfo("Downloaded", f"Work instruction downloaded to:\n{output_path}")
+            messagebox.showinfo(
+                "Downloaded", f"Work instruction downloaded to:\n{output_path}")
         except Exception as exc:
-            messagebox.showerror("Download Failed", f"Could not download work instruction PDF.\n\n{exc}")
+            messagebox.showerror(
+                "Download Failed", f"Could not download work instruction PDF.\n\n{exc}")
 
     def _default_download_path(self, extension: str) -> Path:
         return self._default_download_named(f"{self.excel_path.stem} - Generated Report{extension}")
