@@ -32,6 +32,7 @@ from tools.excel_to_word_converter import convert
 
 APP_TITLE = "SKF Test Report Generator"
 TEMPLATE_RELATIVE_PATH = Path("assets") / "Project Specification - Template.docx"
+DECISION_RULE_SOURCE_RELATIVE_PATH = Path("assets") / "Project Specification - Decision Rule Source.docx"
 
 BG_DARKEST = "#050505"
 BG_SHINY = "#0c0c0c"
@@ -259,6 +260,7 @@ class ReportGeneratorApp:
 
         self.excel_path: Path | None = None
         self.template_path = _resource_path(TEMPLATE_RELATIVE_PATH)
+        self.decision_rule_source_path = _resource_path(DECISION_RULE_SOURCE_RELATIVE_PATH)
 
         today = dt.date.today().strftime("%d/%m/%Y")
         self.report_date_var = tk.StringVar(value=today)
@@ -713,6 +715,7 @@ class ReportGeneratorApp:
                     project_no=self.project_no_var.get().strip() or None,
                     project_leader=self.project_leader_var.get().strip() or None,
                     tooling_lead_time=self.tooling_lead_time_var.get().strip() or None,
+                    decision_rule_source_path=self.decision_rule_source_path if self.decision_rule_source_path.exists() else None,
                 )
             messagebox.showinfo("Success", f"Word report generated and downloaded to:\n{out_path}")
         except Exception as exc:
@@ -737,6 +740,7 @@ class ReportGeneratorApp:
                     project_no=self.project_no_var.get().strip() or None,
                     project_leader=self.project_leader_var.get().strip() or None,
                     tooling_lead_time=self.tooling_lead_time_var.get().strip() or None,
+                    decision_rule_source_path=self.decision_rule_source_path if self.decision_rule_source_path.exists() else None,
                 )
                 _convert_docx_to_pdf(temp_docx, out_pdf_path)
             messagebox.showinfo("Success", f"PDF report generated and downloaded to:\n{out_pdf_path}")

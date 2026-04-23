@@ -47,8 +47,11 @@ Additional report logic:
   - If up to 4 weeks -> shown in weeks
   - If more than 4 weeks -> shown in months
 - Setup notes from Excel setup notes section are inserted under Test Specification (after Fluid section).
+- Setup notes and inserted Reciprocation lines use the same report font style as surrounding Test Specification content.
 - Contamination section is shown only when contamination values exist; otherwise no contamination/slurry subheading is generated.
 - Pre/Post and On-Test snapshots preserve sheet formatting colors and are captured to the last filled On-Test row before the Removal section.
+- Product Drawing image is auto-filled from embedded main drawing in Excel `Part Drawing 1`.
+- Every generated report includes the `Decision Rule` heading and image block (Choice 2 image) without font/color changes.
 
 Generated files are automatically saved into the user's `Downloads` folder.
 
@@ -72,6 +75,7 @@ Generated files are automatically saved into the user's `Downloads` folder.
 Bundled template:
 
 - `assets/Project Specification - Template.docx`
+- `assets/Project Specification - Decision Rule Source.docx` (Decision Rule heading/image source)
 
 ## Run from Source
 

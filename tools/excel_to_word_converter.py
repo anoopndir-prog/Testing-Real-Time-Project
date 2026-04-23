@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import io
 import math
 import re
 from dataclasses import dataclass
@@ -14,7 +15,7 @@ from typing import Any, Dict, Iterable, Optional, Tuple
 import openpyxl
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Inches
+from docx.shared import Inches, Pt
 from openpyxl.styles.colors import COLOR_INDEX
 from openpyxl.utils import get_column_letter, range_boundaries
 from PIL import Image, ImageDraw, ImageFont
@@ -302,7 +303,7 @@ def render_sheet_range_to_image(
     out_path: Path,
     end_at_last_content: bool = False,
 ) -> None:
-    zoom = 1.35
+    zoom = 1.65
     min_col, min_row, max_col, max_row = range_boundaries(range_ref)
 
     if end_at_last_content:
@@ -447,6 +448,39 @@ def _set_paragraph_text(paragraph, new_text: str) -> None:
         run.text = ""
 
 
+def _set_cell_text(cell, text: str) -> None:
+    if not cell.paragraphs:
+        p = cell.add_paragraph("")
+    else:
+        p = cell.paragraphs[0]
+    _set_paragraph_text(p, text)
+    for extra in cell.paragraphs[1:]:
+        _set_paragraph_text(extra, "")
+
+
+def _copy_font_style(from_run, to_run) -> None:
+    to_run.font.name = from_run.font.name
+    to_run.font.size = from_run.font.size
+    to_run.bold = from_run.bold
+    to_run.italic = from_run.italic
+    to_run.underline = from_run.underline
+    to_run.font.color.rgb = from_run.font.color.rgb
+
+
+def _set_paragraph_font_like(paragraph, source_paragraph) -> None:
+    if not paragraph.runs or not source_paragraph or not source_paragraph.runs:
+        return
+    src_run = None
+    for run in source_paragraph.runs:
+        if run.text:
+            src_run = run
+            break
+    if src_run is None:
+        src_run = source_paragraph.runs[0]
+    for run in paragraph.runs:
+        _copy_font_style(src_run, run)
+
+
 def _find_paragraph_by_prefix(doc: Document, prefix: str, occurrence: int = 1):
     count = 0
     for p in doc.paragraphs:
@@ -484,6 +518,41 @@ def _replace_image_after_anchor(doc: Document, anchor_text: str, image_path: Pat
     run = target.add_run()
     run.add_picture(str(image_path), width=Inches(width_inches))
     target.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+
+def _extract_main_drawing_image(
+    wb: openpyxl.Workbook,
+    out_path: Path,
+    sheet_name: str = "Part Drawing 1",
+) -> Optional[Path]:
+    if sheet_name not in wb.sheetnames:
+        return None
+
+    ws = wb[sheet_name]
+    images = list(getattr(ws, "_images", []) or [])
+    if not images:
+        return None
+
+    # Pick the largest embedded image (typically the main drawing block).
+    chosen = None
+    chosen_area = -1
+    for img in images:
+        try:
+            blob = img._data()
+            with Image.open(io.BytesIO(blob)) as im:
+                area = im.width * im.height
+            if area > chosen_area:
+                chosen_area = area
+                chosen = blob
+        except Exception:
+            continue
+
+    if not chosen:
+        return None
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_bytes(chosen)
+    return out_path
 
 
 def _replace_acceptance_line(doc: Document, acceptance_text: str) -> None:
@@ -542,6 +611,102 @@ def _replace_project_no_everywhere(doc: Document, project_no: str) -> None:
         updated = pattern_project_spec.sub(lambda m: f"{m.group(1)}{project_no}", updated, count=1)
         if updated != text:
             _set_paragraph_text(para, updated)
+
+
+def _extract_blip_ids_and_widths(paragraph) -> list[Tuple[str, Optional[float]]]:
+    from lxml import etree
+
+    ns = {
+        "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
+        "wp": "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
+    }
+    items: list[Tuple[str, Optional[float]]] = []
+    for run in paragraph.runs:
+        root = etree.fromstring(run._element.xml.encode())
+        blips = root.xpath(".//a:blip", namespaces=ns)
+        extents = root.xpath(".//wp:extent", namespaces=ns)
+        width_inches = None
+        if extents:
+            cx = extents[0].get("cx")
+            if cx and cx.isdigit():
+                width_inches = int(cx) / 914400.0
+        for b in blips:
+            rid = b.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed")
+            if rid:
+                items.append((rid, width_inches))
+    return items
+
+
+def _ensure_decision_rule_block(doc: Document, decision_rule_source_path: Optional[Path]) -> None:
+    if _try_find_paragraph_by_prefix(doc, "Decision Rule:") is not None:
+        return
+
+    anchor = (
+        _try_find_paragraph_by_prefix(doc, "Product Drawing:")
+        or _try_find_paragraph_by_prefix(doc, "Part drawing:")
+        or _try_find_paragraph_by_prefix(doc, "Procedure for monitoring:")
+    )
+    if anchor is None:
+        return
+
+    heading_text = "Decision Rule:"
+    heading_font_name = "Verdana"
+    heading_bold = True
+    heading_size_pt = 12.0
+    image_blob: Optional[bytes] = None
+    image_width_inches = 6.0
+
+    if decision_rule_source_path and decision_rule_source_path.exists():
+        src_doc = Document(decision_rule_source_path)
+        decision_para = _try_find_paragraph_by_prefix(src_doc, "Decision Rule:")
+        if decision_para is not None:
+            heading_text = decision_para.text.strip() or heading_text
+            if decision_para.runs:
+                run = next((r for r in decision_para.runs if r.text.strip()), decision_para.runs[0])
+                if run.font.name:
+                    heading_font_name = run.font.name
+                if run.font.size:
+                    heading_size_pt = run.font.size.pt
+                if run.bold is not None:
+                    heading_bold = run.bold
+
+            start_idx = 0
+            for idx, para in enumerate(src_doc.paragraphs):
+                if para._p is decision_para._p:
+                    start_idx = idx
+                    break
+            end_idx = len(src_doc.paragraphs)
+            for idx in range(start_idx + 1, len(src_doc.paragraphs)):
+                txt = src_doc.paragraphs[idx].text.strip()
+                if txt.startswith("Part drawing:") or txt.startswith("Product Drawing:"):
+                    end_idx = idx
+                    break
+
+            found = False
+            for idx in range(start_idx, end_idx):
+                para = src_doc.paragraphs[idx]
+                for rid, width in _extract_blip_ids_and_widths(para):
+                    related = src_doc.part.related_parts.get(rid)
+                    if related is not None:
+                        image_blob = related.blob
+                        if width:
+                            image_width_inches = width
+                        found = True
+                        break
+                if found:
+                    break
+
+    p_decision = anchor.insert_paragraph_before(heading_text)
+    if not p_decision.runs:
+        p_decision.add_run(heading_text)
+    for run in p_decision.runs:
+        run.font.name = heading_font_name
+        run.bold = heading_bold
+        run.font.size = Pt(heading_size_pt)
+
+    if image_blob:
+        p_image = anchor.insert_paragraph_before("")
+        p_image.add_run().add_picture(io.BytesIO(image_blob), width=Inches(image_width_inches))
 
 
 def _try_find_paragraph_by_prefix(doc: Document, prefix: str, occurrence: int = 1):
@@ -605,7 +770,7 @@ def _find_on_test_end_row(ws: openpyxl.worksheet.worksheet.Worksheet, start_row:
     return last
 
 
-def _fill_first_empty_between(doc: Document, start_prefix: str, end_prefix: str, text: str) -> None:
+def _fill_first_empty_between(doc: Document, start_prefix: str, end_prefix: str, text: str):
     start_index: Optional[int] = None
     end_index: Optional[int] = None
 
@@ -619,16 +784,17 @@ def _fill_first_empty_between(doc: Document, start_prefix: str, end_prefix: str,
                 break
 
     if start_index is None or end_index is None or end_index <= start_index:
-        return
+        return None
 
     for idx in range(start_index + 1, end_index):
         para = doc.paragraphs[idx]
         if not para.text.strip():
             _set_paragraph_text(para, text)
-            return
+            return para
+    return None
 
 
-def _fill_first_empty_between_any_end(doc: Document, start_prefix: str, end_prefixes: list[str], text: str) -> None:
+def _fill_first_empty_between_any_end(doc: Document, start_prefix: str, end_prefixes: list[str], text: str):
     start_index: Optional[int] = None
     end_index: Optional[int] = None
 
@@ -644,7 +810,7 @@ def _fill_first_empty_between_any_end(doc: Document, start_prefix: str, end_pref
             break
 
     if start_index is None:
-        return
+        return None
 
     if end_index is None:
         end_index = len(doc.paragraphs)
@@ -653,7 +819,8 @@ def _fill_first_empty_between_any_end(doc: Document, start_prefix: str, end_pref
         para = doc.paragraphs[idx]
         if not para.text.strip():
             _set_paragraph_text(para, text)
-            return
+            return para
+    return None
 
 
 def update_word_template(
@@ -668,6 +835,8 @@ def update_word_template(
     project_no: Optional[str] = None,
     project_leader: Optional[str] = None,
     tooling_lead_time: Optional[str] = None,
+    decision_rule_source_path: Optional[Path] = None,
+    product_drawing_image_path: Optional[Path] = None,
 ) -> None:
     doc = Document(template_path)
 
@@ -676,19 +845,19 @@ def update_word_template(
 
     if len(doc.tables) >= 2:
         title_table = doc.tables[1]
-        title_table.rows[0].cells[1].text = title
-        title_table.rows[0].cells[2].text = title
-        title_table.rows[0].cells[3].text = title
-        title_table.rows[1].cells[1].text = data.requester
+        _set_cell_text(title_table.rows[0].cells[1], title)
+        _set_cell_text(title_table.rows[0].cells[2], title)
+        _set_cell_text(title_table.rows[0].cells[3], title)
+        _set_cell_text(title_table.rows[1].cells[1], data.requester)
         if project_leader is not None and len(title_table.rows[1].cells) >= 4:
             project_leader_text = project_leader.strip()
             if project_leader_text:
-                title_table.rows[1].cells[3].text = project_leader_text
+                _set_cell_text(title_table.rows[1].cells[3], project_leader_text)
 
     if len(doc.tables) >= 3:
         time_table = doc.tables[2]
         if len(time_table.rows) >= 2 and len(time_table.rows[1].cells) >= 2 and tooling_lead_time:
-            time_table.rows[1].cells[1].text = tooling_lead_time
+            _set_cell_text(time_table.rows[1].cells[1], tooling_lead_time)
 
         num_samples_num = int(_extract_first_number(data.num_samples) or 0)
         each_hours = _extract_first_number(data.acceptance_duration) or 0.0
@@ -698,20 +867,20 @@ def update_word_template(
             testing_activity = f"Testing of {num_samples_num} {sample_word} @ {each_hours_label} Hrs. each"
             testing_duration = _testing_duration_label(num_samples_num, each_hours)
             if len(time_table.rows) >= 3 and len(time_table.rows[2].cells) >= 2:
-                time_table.rows[2].cells[0].text = testing_activity
+                _set_cell_text(time_table.rows[2].cells[0], testing_activity)
                 if testing_duration:
-                    time_table.rows[2].cells[1].text = testing_duration
+                    _set_cell_text(time_table.rows[2].cells[1], testing_duration)
 
     if len(doc.tables) >= 1:
         meta_table = doc.tables[0]
         if report_date and len(meta_table.rows[0].cells) >= 2:
-            meta_table.rows[0].cells[1].text = report_date
+            _set_cell_text(meta_table.rows[0].cells[1], report_date)
         if len(meta_table.rows[0].cells) >= 4:
-            meta_table.rows[0].cells[3].text = revision_date or "DD/MM/YYYY"
+            _set_cell_text(meta_table.rows[0].cells[3], revision_date or "DD/MM/YYYY")
         if revision_no is not None and len(meta_table.rows[0].cells) >= 6:
             revision_text = str(revision_no).strip()
             if revision_text:
-                meta_table.rows[0].cells[5].text = revision_text
+                _set_cell_text(meta_table.rows[0].cells[5], revision_text)
 
     _replace_project_no_everywhere(doc, project_no or "")
 
@@ -760,12 +929,15 @@ def update_word_template(
         _find_paragraph_by_prefix(doc, "Seals cock:"),
         f"Seals cock: {data.seal_cock_value} ± {data.seal_cock_tolerance} {data.shaft_unit}",
     )
-    _fill_first_empty_between(
+    inserted_recip = _fill_first_empty_between(
         doc,
         "Seals cock:",
         "Fluid:",
         f"Reciprocation: {data.recip_value} ± {data.recip_tolerance} {data.shaft_unit}",
     )
+    seals_cock_para = _try_find_paragraph_by_prefix(doc, "Seals cock:")
+    if inserted_recip is not None and seals_cock_para is not None:
+        _set_paragraph_font_like(inserted_recip, seals_cock_para)
 
     customer_caps = data.customer.upper() if data.customer else ""
     fluid_type = f"{data.oil_type} {customer_caps}".strip()
@@ -780,12 +952,15 @@ def update_word_template(
 
     setup_notes_text = (data.setup_notes_full or "").strip()
     if setup_notes_text:
-        _fill_first_empty_between_any_end(
+        inserted_setup = _fill_first_empty_between_any_end(
             doc,
             "Pre-lube:",
             ["Contamination:", "Slurry Mixing:", "Test Procedure:"],
             f"Setup Notes: {setup_notes_text}",
         )
+        fluid_ref = _try_find_paragraph_by_prefix(doc, "Fluid Level") or _try_find_paragraph_by_prefix(doc, "Type –")
+        if inserted_setup is not None and fluid_ref is not None:
+            _set_paragraph_font_like(inserted_setup, fluid_ref)
 
     contamination_content_present = any(
         x.strip()
@@ -804,13 +979,24 @@ def update_word_template(
         _set_paragraph_text(_find_paragraph_by_prefix(doc, "Type:", occurrence=1), f"Type: {data.contamination_type}")
         _set_paragraph_text(_find_paragraph_by_prefix(doc, "Mix Ratio:"), f"Mix Ratio: {data.contamination_mix_ratio}")
         _set_paragraph_text(_find_paragraph_by_prefix(doc, "Amount:"), f"Amount: {data.contamination_amount}")
-        _fill_first_empty_between(doc, "Amount:", "Test Procedure:", f"Recip. Frequency: {data.contamination_recip_freq}")
-        _fill_first_empty_between(
+        amount_para = _try_find_paragraph_by_prefix(doc, "Amount:")
+        inserted_recip_freq = _fill_first_empty_between(
+            doc,
+            "Amount:",
+            "Test Procedure:",
+            f"Recip. Frequency: {data.contamination_recip_freq}",
+        )
+        inserted_stbm_orient = _fill_first_empty_between(
             doc,
             "Amount:",
             "Test Procedure:",
             f"STBM Orientation: {data.contamination_stbm_orientation}",
         )
+        if amount_para is not None:
+            if inserted_recip_freq is not None:
+                _set_paragraph_font_like(inserted_recip_freq, amount_para)
+            if inserted_stbm_orient is not None:
+                _set_paragraph_font_like(inserted_stbm_orient, amount_para)
     else:
         _clear_paragraph_by_prefix(doc, "Slurry Mixing:")
         _clear_paragraph_by_prefix(doc, "Contamination:")
@@ -829,6 +1015,12 @@ def update_word_template(
         width_inches=6.4,
     )
     _replace_image_after_anchor(doc, "Test cycle would be as follows:", duty_cycle_image_path, width_inches=7.0)
+    if product_drawing_image_path and product_drawing_image_path.exists():
+        if _try_find_paragraph_by_prefix(doc, "Product Drawing:") is not None:
+            _replace_image_after_anchor(doc, "Product Drawing:", product_drawing_image_path, width_inches=6.6)
+        elif _try_find_paragraph_by_prefix(doc, "Part drawing:") is not None:
+            _replace_image_after_anchor(doc, "Part drawing:", product_drawing_image_path, width_inches=6.6)
+    _ensure_decision_rule_block(doc, decision_rule_source_path)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(output_path)
@@ -845,6 +1037,7 @@ def convert(
     project_no: Optional[str] = None,
     project_leader: Optional[str] = None,
     tooling_lead_time: Optional[str] = None,
+    decision_rule_source_path: Optional[Path] = None,
 ) -> None:
     data = extract_excel_data(excel_path)
 
@@ -854,10 +1047,17 @@ def convert(
 
     pre_post_img = temp_dir / "pre_post_measurements.png"
     duty_cycle_img = temp_dir / "duty_cycle.png"
+    product_drawing_img = temp_dir / "product_drawing_main.png"
 
     render_sheet_range_to_image(page1, "A30:L44", pre_post_img, end_at_last_content=False)
     on_test_end_row = _find_on_test_end_row(page2, start_row=8)
     render_sheet_range_to_image(page2, f"A8:O{on_test_end_row}", duty_cycle_img, end_at_last_content=True)
+    product_drawing_image_path = _extract_main_drawing_image(wb, product_drawing_img, sheet_name="Part Drawing 1")
+
+    if decision_rule_source_path is None:
+        candidate = Path(__file__).resolve().parents[1] / "assets" / "Project Specification - Decision Rule Source.docx"
+        if candidate.exists():
+            decision_rule_source_path = candidate
 
     update_word_template(
         template_docx_path,
@@ -871,6 +1071,8 @@ def convert(
         project_no=project_no,
         project_leader=project_leader,
         tooling_lead_time=tooling_lead_time,
+        decision_rule_source_path=decision_rule_source_path,
+        product_drawing_image_path=product_drawing_image_path,
     )
 
 
@@ -917,6 +1119,13 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Estimated lead time for Tooling Design, Manufacture and Inspection.",
     )
+    parser.add_argument(
+        "--decision-rule-source",
+        dest="decision_rule_source",
+        type=Path,
+        default=None,
+        help="Optional source .docx to copy Decision Rule heading/image block from.",
+    )
     return parser.parse_args()
 
 
@@ -933,6 +1142,7 @@ def main() -> None:
         project_no=args.project_no,
         project_leader=args.project_leader,
         tooling_lead_time=args.tooling_lead_time,
+        decision_rule_source_path=args.decision_rule_source,
     )
     print(f"Generated Word document: {args.output}")
 
