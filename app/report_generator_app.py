@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 import datetime as dt
+import calendar as calendar_lib
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -555,10 +556,7 @@ class ReportGeneratorApp:
 
     def _open_calendar(self, target_var: tk.StringVar, allow_clear: bool) -> None:
         if Calendar is None:
-            messagebox.showwarning(
-                "Calendar Not Available",
-                "Calendar widget is not installed. Please run: pip install tkcalendar",
-            )
+            self._open_native_calendar(target_var, allow_clear)
             return
 
         popup = tk.Toplevel(self.root)
@@ -629,6 +627,139 @@ class ReportGeneratorApp:
                 pady=4,
                 cursor="hand2",
             ).pack(side="left", padx=(8, 0))
+
+    def _open_native_calendar(self, target_var: tk.StringVar, allow_clear: bool) -> None:
+        popup = tk.Toplevel(self.root)
+        popup.title("Select Date")
+        popup.configure(bg="#111111")
+        popup.resizable(False, False)
+        popup.transient(self.root)
+        popup.grab_set()
+
+        selected = target_var.get().strip()
+        today = dt.date.today()
+        try:
+            current_date = dt.datetime.strptime(
+                selected, "%d/%m/%Y").date() if selected else today
+        except ValueError:
+            current_date = today
+
+        shown_year = current_date.year
+        shown_month = current_date.month
+
+        header = tk.Frame(popup, bg="#111111")
+        header.pack(fill="x", padx=10, pady=(10, 6))
+
+        title_var = tk.StringVar()
+
+        def change_month(delta: int) -> None:
+            nonlocal shown_year, shown_month
+            month_index = shown_month - 1 + delta
+            shown_year += month_index // 12
+            shown_month = month_index % 12 + 1
+            draw_days()
+
+        tk.Button(
+            header,
+            text="<",
+            command=lambda: change_month(-1),
+            bg="#1b1b1b",
+            fg="#eaeaea",
+            relief="flat",
+            width=3,
+            cursor="hand2",
+        ).pack(side="left")
+
+        tk.Label(
+            header,
+            textvariable=title_var,
+            bg="#111111",
+            fg="#f0f0f0",
+            font=("Segoe UI", 10, "bold"),
+            width=18,
+        ).pack(side="left", padx=8)
+
+        tk.Button(
+            header,
+            text=">",
+            command=lambda: change_month(1),
+            bg="#1b1b1b",
+            fg="#eaeaea",
+            relief="flat",
+            width=3,
+            cursor="hand2",
+        ).pack(side="left")
+
+        day_frame = tk.Frame(popup, bg="#111111")
+        day_frame.pack(padx=10, pady=(0, 10))
+
+        for column, day_name in enumerate(("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")):
+            tk.Label(
+                day_frame,
+                text=day_name,
+                bg="#111111",
+                fg="#a3a3a3",
+                font=("Segoe UI", 9, "bold"),
+                width=4,
+            ).grid(row=0, column=column, padx=1, pady=1)
+
+        def choose_date(day: int) -> None:
+            target_var.set(dt.date(shown_year, shown_month,
+                           day).strftime("%d/%m/%Y"))
+            popup.destroy()
+
+        def draw_days() -> None:
+            title_var.set(f"{calendar_lib.month_name[shown_month]} {shown_year}")
+            for child in day_frame.grid_slaves():
+                row = int(child.grid_info().get("row", 0))
+                if row > 0:
+                    child.destroy()
+
+            month_days = calendar_lib.monthcalendar(shown_year, shown_month)
+            for row_index, week in enumerate(month_days, start=1):
+                for column, day in enumerate(week):
+                    if day == 0:
+                        tk.Label(
+                            day_frame,
+                            text="",
+                            bg="#111111",
+                            width=4,
+                        ).grid(row=row_index, column=column, padx=1, pady=1)
+                        continue
+
+                    is_selected = (
+                        shown_year == current_date.year
+                        and shown_month == current_date.month
+                        and day == current_date.day
+                    )
+                    tk.Button(
+                        day_frame,
+                        text=str(day),
+                        command=lambda selected_day=day: choose_date(selected_day),
+                        bg=ACCENT_GREEN if is_selected else "#101010",
+                        fg=BUTTON_TEXT if is_selected else "#f0f0f0",
+                        activebackground=ACCENT_GREEN_HOVER,
+                        activeforeground=BUTTON_TEXT,
+                        relief="flat",
+                        width=4,
+                        cursor="hand2",
+                    ).grid(row=row_index, column=column, padx=1, pady=1)
+
+        draw_days()
+
+        if allow_clear:
+            tk.Button(
+                popup,
+                text="Clear",
+                command=lambda: (target_var.set(""), popup.destroy()),
+                bg="#1b1b1b",
+                fg="#eaeaea",
+                relief="flat",
+                font=("Segoe UI", 10),
+                padx=12,
+                pady=4,
+                cursor="hand2",
+            ).pack(anchor="w", padx=10, pady=(0, 10))
 
     def _setup_drag_drop(self) -> None:
         if DND_FILES is None:
