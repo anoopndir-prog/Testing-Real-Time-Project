@@ -150,8 +150,9 @@ def _resource_path(relative_path: Path) -> Path:
 
 def _convert_docx_to_pdf(docx_path: Path, pdf_path: Path) -> None:
     errors: list[str] = []
+    platform: str = sys.platform  # str annotation prevents static literal narrowing
 
-    if sys.platform.startswith("win"):
+    if platform.startswith("win"):
         try:
             import win32com.client  # type: ignore
 
@@ -165,20 +166,99 @@ def _convert_docx_to_pdf(docx_path: Path, pdf_path: Path) -> None:
                 document.Close(False)
                 word.Quit()
             return
-        except Exception as exc:  # pragma: no cover
+        except Exception as exc:
             errors.append(f"MS Word automation failed: {exc}")
 
-    try:
-        from docx2pdf import convert as docx2pdf_convert
+        try:
+            from docx2pdf import convert as docx2pdf_convert
 
-        docx2pdf_convert(str(docx_path.resolve()), str(pdf_path.resolve()))
-        if pdf_path.exists():
-            return
-        errors.append("docx2pdf completed without creating output PDF")
-    except Exception as exc:  # pragma: no cover
-        errors.append(f"docx2pdf failed: {exc}")
+            docx2pdf_convert(str(docx_path.resolve()), str(pdf_path.resolve()))
+            if pdf_path.exists():
+                return
+            errors.append("docx2pdf completed without creating output PDF")
+        except Exception as exc:
+            errors.append(f"docx2pdf failed: {exc}")
 
-    raise RuntimeError(" | ".join(errors))
+        raise RuntimeError(" | ".join(errors))
+
+    elif platform == "darwin":
+        # Try Microsoft Word via docx2pdf
+        try:
+            from docx2pdf import convert as docx2pdf_convert
+
+            docx2pdf_convert(str(docx_path.resolve()), str(pdf_path.resolve()))
+            if pdf_path.exists():
+                return
+            errors.append("docx2pdf completed without creating output PDF")
+        except Exception as exc:
+            errors.append(f"docx2pdf (Word) failed: {exc}")
+
+        # Fallback: Apple Pages via AppleScript (built into macOS)
+        try:
+            import subprocess
+
+            script = f'''
+tell application "Pages"
+    set theDoc to open POSIX file "{docx_path.resolve()}"
+    delay 2
+    export theDoc to POSIX file "{pdf_path.resolve()}" as PDF
+    close theDoc saving no
+end tell
+'''
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True, text=True, timeout=60,
+            )
+            if pdf_path.exists():
+                return
+            errors.append(f"Pages export failed: {result.stderr.strip()}")
+        except Exception as exc:
+            errors.append(f"Apple Pages automation failed: {exc}")
+
+        # Fallback: LibreOffice if installed
+        try:
+            import subprocess
+
+            lo_candidates = [
+                "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+                "libreoffice",
+                "soffice",
+            ]
+            lo_bin = next((c for c in lo_candidates if Path(c).exists()), None)
+            if lo_bin:
+                result = subprocess.run(
+                    [lo_bin, "--headless", "--convert-to", "pdf",
+                     "--outdir", str(pdf_path.parent), str(docx_path.resolve())],
+                    capture_output=True, text=True, timeout=120,
+                )
+                converted = pdf_path.parent / (docx_path.stem + ".pdf")
+                if converted.exists():
+                    if converted != pdf_path:
+                        converted.rename(pdf_path)
+                    return
+                errors.append(f"LibreOffice conversion failed: {result.stderr.strip()}")
+            else:
+                errors.append("LibreOffice not found")
+        except Exception as exc:
+            errors.append(f"LibreOffice failed: {exc}")
+
+        raise RuntimeError(
+            "PDF conversion failed. Install Microsoft Word or LibreOffice for reliable PDF export.\n\n"
+            + " | ".join(errors)
+        )
+
+    else:
+        try:
+            from docx2pdf import convert as docx2pdf_convert
+
+            docx2pdf_convert(str(docx_path.resolve()), str(pdf_path.resolve()))
+            if pdf_path.exists():
+                return
+            errors.append("docx2pdf completed without creating output PDF")
+        except Exception as exc:
+            errors.append(f"docx2pdf failed: {exc}")
+
+        raise RuntimeError(" | ".join(errors))
 
 
 def _write_instruction_pdf(output_path: Path) -> None:
@@ -821,6 +901,12 @@ class ReportGeneratorApp:
             if DND_FILES is not None
             else "Click to browse your Excel file"
         )
+        self.report_date_var.set(dt.date.today().strftime("%d/%m/%Y"))
+        self.revision_var.set("0")
+        self.revision_date_var.set("")
+        self.project_no_var.set("")
+        self.project_leader_var.set("")
+        self.tooling_lead_time_var.set("Available")
 
     def _ensure_inputs(self) -> bool:
         if self.excel_path is None:

@@ -5,5 +5,7 @@ __pycache__/
 .venv/
 build/
 dist/
+# keep SKFReportGenerator.spec tracked
+!SKFReportGenerator.spec
 *.spec
 output/generated_assets/
