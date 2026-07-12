@@ -8,6 +8,7 @@ import datetime as dt
 import io
 import math
 import re
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Tuple
@@ -25,6 +26,15 @@ DEFAULT_FONT_PATHS = [
     "/System/Library/Fonts/Supplemental/Arial.ttf",
     "/System/Library/Fonts/Supplemental/Calibri.ttf",
 ]
+
+# Guards against decompression-bomb style .xlsx/.xlsm/.docx files (all are zip
+# archives of XML under the hood). Checked against the zip's own directory
+# metadata, so a malicious file is rejected before any of its content is
+# actually decompressed or parsed.
+_MAX_OFFICE_FILE_BYTES = 50 * 1024 * 1024
+_MAX_OFFICE_UNCOMPRESSED_BYTES = 500 * 1024 * 1024
+_MAX_OFFICE_ZIP_ENTRIES = 10_000
+_MAX_OFFICE_ENTRY_COMPRESSION_RATIO = 100
 
 
 @dataclass
@@ -77,6 +87,49 @@ class ExtractedData:
 
 class TemplateUpdateError(RuntimeError):
     pass
+
+
+class MaliciousFileError(RuntimeError):
+    """Raised when an .xlsx/.xlsm/.docx file fails basic decompression-bomb safety checks."""
+
+
+def _validate_office_zip(path: Path) -> None:
+    try:
+        size_on_disk = path.stat().st_size
+    except OSError as exc:
+        raise MaliciousFileError(f"Cannot read file: {exc}") from exc
+
+    if size_on_disk > _MAX_OFFICE_FILE_BYTES:
+        raise MaliciousFileError(
+            f"'{path.name}' is too large "
+            f"({size_on_disk / 1_048_576:.1f} MB, max {_MAX_OFFICE_FILE_BYTES / 1_048_576:.0f} MB)."
+        )
+
+    try:
+        with zipfile.ZipFile(path) as zf:
+            infos = zf.infolist()
+            if len(infos) > _MAX_OFFICE_ZIP_ENTRIES:
+                raise MaliciousFileError(
+                    f"'{path.name}' contains an unexpectedly large number of internal parts."
+                )
+
+            total_uncompressed = 0
+            for info in infos:
+                total_uncompressed += info.file_size
+                if total_uncompressed > _MAX_OFFICE_UNCOMPRESSED_BYTES:
+                    raise MaliciousFileError(
+                        f"'{path.name}' expands to an unexpectedly large size when opened "
+                        "(possible decompression bomb)."
+                    )
+                if info.compress_size > 0 and info.file_size > 1_048_576:
+                    ratio = info.file_size / info.compress_size
+                    if ratio > _MAX_OFFICE_ENTRY_COMPRESSION_RATIO:
+                        raise MaliciousFileError(
+                            f"'{path.name}' contains a suspiciously compressed part "
+                            "(possible decompression bomb)."
+                        )
+    except zipfile.BadZipFile as exc:
+        raise MaliciousFileError(f"'{path.name}' is not a valid Office file: {exc}") from exc
 
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -175,6 +228,7 @@ def _collect_setup_notes(ws: openpyxl.worksheet.worksheet.Worksheet) -> str:
 
 
 def extract_excel_data(excel_path: Path) -> ExtractedData:
+    _validate_office_zip(excel_path)
     wb = openpyxl.load_workbook(excel_path, data_only=True)
     ws1 = wb["Page 1"]
     ws2 = wb["Page 2"]
@@ -657,6 +711,7 @@ def _ensure_decision_rule_block(doc: Document, decision_rule_source_path: Option
     image_width_inches = 6.0
 
     if decision_rule_source_path and decision_rule_source_path.exists():
+        _validate_office_zip(decision_rule_source_path)
         src_doc = Document(decision_rule_source_path)
         decision_para = _try_find_paragraph_by_prefix(src_doc, "Decision Rule:")
         if decision_para is not None:
@@ -838,6 +893,7 @@ def update_word_template(
     decision_rule_source_path: Optional[Path] = None,
     product_drawing_image_path: Optional[Path] = None,
 ) -> None:
+    _validate_office_zip(template_path)
     doc = Document(template_path)
 
     part_compact = data.part_number.replace(" ", "")

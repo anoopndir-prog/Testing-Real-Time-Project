@@ -197,11 +197,14 @@ def _convert_docx_to_pdf(docx_path: Path, pdf_path: Path) -> None:
         try:
             import subprocess
 
+            def _applescript_escape(text: str) -> str:
+                return text.replace("\\", "\\\\").replace('"', '\\"')
+
             script = f'''
 tell application "Pages"
-    set theDoc to open POSIX file "{docx_path.resolve()}"
+    set theDoc to open POSIX file "{_applescript_escape(str(docx_path.resolve()))}"
     delay 2
-    export theDoc to POSIX file "{pdf_path.resolve()}" as PDF
+    export theDoc to POSIX file "{_applescript_escape(str(pdf_path.resolve()))}" as PDF
     close theDoc saving no
 end tell
 '''
