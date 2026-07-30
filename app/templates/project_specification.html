@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Project Specification{% endblock %}
+{% block content %}
+  <div class="page-title">SKF Test Report Generator</div>
+  <div class="page-subtitle">Project Specification</div>
+
+  {% if error %}
+    <div class="error-banner">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('project_specification_generate') }}" enctype="multipart/form-data">
+    <div class="field-row">
+      <div class="field">
+        <label for="report_date">Date</label>
+        <input type="date" id="report_date" name="report_date" value="{{ request.form.get('report_date', today) }}">
+      </div>
+      <div class="field">
+        <label for="revision">Revision</label>
+        <input type="number" id="revision" name="revision" min="0" step="1" value="{{ request.form.get('revision', '0') }}" style="min-width:80px">
+      </div>
+      <div class="field">
+        <label for="revision_date">Revision Date</label>
+        <input type="date" id="revision_date" name="revision_date" value="{{ request.form.get('revision_date', '') }}">
+      </div>
+      <div class="field">
+        <label for="project_no">Project No.</label>
+        <input type="text" id="project_no" name="project_no" placeholder="TR26-0002-BTS" value="{{ request.form.get('project_no', '') }}">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="tooling_lead_time">Tooling Lead Time</label>
+        <select id="tooling_lead_time" name="tooling_lead_time">
+          {% for option in tooling_lead_time_options %}
+            <option value="{{ option }}" {% if request.form.get('tooling_lead_time', 'Available') == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="project_leader">Project Leader</label>
+        <input type="text" id="project_leader" name="project_leader" value="{{ request.form.get('project_leader', '') }}">
+      </div>
+    </div>
+
+    <label class="dropzone" data-dropzone for="excel_file">
+      <input type="file" id="excel_file" name="excel_file" accept=".xlsx,.xlsm" required>
+      <div class="dz-icon" data-dz-icon>&#128204;</div>
+      <div class="dz-main" data-dz-main>Attach your excel</div>
+      <div class="dz-sub" data-dz-sub>Drag &amp; drop your Excel here or click to browse</div>
+    </label>
+
+    <div class="btn-row">
+      <button type="submit" class="btn" name="action" value="word">Generate Report in Word</button>
+      <button type="submit" class="btn" name="action" value="pdf">Generate Report in PDF</button>
+      <a class="btn btn-secondary" href="{{ url_for('index') }}">Back</a>
+    </div>
+  </form>
+{% endblock %}

@@ -9,9 +9,9 @@ Main menu offers two tools:
 """
 
 from __future__ import annotations
-from app.final_test_report_view import FinalTestReportView
-from app.project_specification_view import ProjectSpecificationView
 from app.ui_common import APP_TITLE, BG_DARKEST, RoundedButton
+from app.project_specification_view import ProjectSpecificationView
+from app.final_test_report_view import FinalTestReportView
 
 import sys
 from pathlib import Path

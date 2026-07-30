@@ -1,13 +1,40 @@
 # SKF Report Generator
 
-Desktop software to attach an Excel test request and generate:
+Desktop tool (`app/report_generator_app.py`) to attach the source files and
+generate:
 
 - Word report (`.docx`)
 - PDF report (`.pdf`)
 
-using the predefined SKF project specification template.
+for two tools: **Project Specification** and **Final Test Report**, using
+the predefined SKF templates.
 
-## UI Flow
+## Packaged desktop app
+
+The packaged Windows build is a **single-file `.exe`** containing the
+Tkinter desktop UI. Double-clicking it opens a normal application window -
+no browser, no local web server, and no network port is opened.
+
+Each user runs their own copy on their own machine; there is no host PC and
+nothing runs in the background. Generated reports are written to the user's
+own Downloads folder.
+
+- **Build it**: `build_windows_exe.bat` (needs Python, on the build machine
+  only). The build is gated on `pip-audit` and `bandit` and will refuse to
+  produce an executable if either fails.
+- **Distribute it**: see `DEPLOYMENT_WINDOWS.md` - covers code signing,
+  checksums, and what each user needs installed.
+
+Notes:
+
+- **PDF export** drives Microsoft Word via COM, which is why output matches
+  the templates exactly. Word must be installed on the user's machine.
+  Word output (`.docx`) has no such requirement.
+- A browser/LAN version still exists (`python app/web_app.py`) and serves
+  the same two tools over HTTP for shared use. It is not part of the
+  packaged build.
+
+## UI Flow (Project Specification)
 
 - Pitch-dark black UI with slightly shiny black center attachment box
 - Metadata row above attachment box:
@@ -53,7 +80,9 @@ Additional report logic:
 - Product Drawing image is auto-filled from embedded main drawing in Excel `Part Drawing 1`.
 - Every generated report includes the `Decision Rule` heading and image block (Choice 2 image) without font/color changes.
 
-Generated files are automatically saved into the user's `Downloads` folder.
+In the browser tool, generated files come back as a normal download (to
+your browser's Downloads folder). In the legacy desktop app, they're
+written straight into your `Downloads` folder.
 
 ## Extraction Rules Implemented
 
@@ -85,7 +114,13 @@ Install dependencies:
 python3 -m pip install -r requirements.txt
 ```
 
-Start GUI:
+Start the browser tool (opens `http://127.0.0.1:8877/` in your default browser):
+
+```bash
+python3 app/web_app.py
+```
+
+Or run the legacy Tkinter desktop app instead:
 
 ```bash
 python3 app/report_generator_app.py
@@ -109,7 +144,10 @@ This generates:
 
 - `dist/SKF_Report_Generator.exe`
 
+Double-clicking it starts the local web server (see "Browser (HTML) tool"
+above) and opens it in the default browser.
+
 Notes:
 
-- For reliable PDF generation in Windows `.exe`, Microsoft Word is recommended (used via automation).
-- The `.exe` includes the bundled template file.
+- For reliable PDF generation, Microsoft Word is recommended on the host machine (used via automation).
+- The `.exe` includes both bundled template files (Project Specification and Final Test Report) plus the web app's templates/static assets.

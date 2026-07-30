@@ -7,12 +7,12 @@ picker) without duplicating widget code.
 
 from __future__ import annotations
 
-import sys
 import calendar as calendar_lib
 import datetime as dt
-from pathlib import Path
 import tkinter as tk
 from tkinter import ttk
+
+from app.paths import resource_path
 
 try:
     from tkcalendar import Calendar  # type: ignore
@@ -32,12 +32,6 @@ BUTTON_TEXT = "#020202"
 ENTRY_BG = "#101010"
 ENTRY_FG = "#f0f0f0"
 ENTRY_BORDER = "#2a2a2a"
-
-
-def resource_path(relative_path: Path) -> Path:
-    if hasattr(sys, "_MEIPASS"):
-        return Path(sys._MEIPASS) / relative_path
-    return Path(__file__).resolve().parents[1] / relative_path
 
 
 class RoundedButton(tk.Canvas):

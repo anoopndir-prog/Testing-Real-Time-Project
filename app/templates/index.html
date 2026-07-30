@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Global Testing India{% endblock %}
+{% block content %}
+  <div class="page-title">Global Testing India</div>
+  <div class="page-subtitle">Select a tool to continue</div>
+
+  <div class="lan-banner">
+    Share this address with your team so they can use this tool from their own browser:<br>
+    <strong>{{ lan_url }}</strong>
+  </div>
+
+  <div class="menu-cards">
+    <a class="btn" href="{{ url_for('project_specification_form') }}">Project Specification</a>
+    <a class="btn" href="{{ url_for('final_test_report_form') }}">Final Test Report</a>
+  </div>
+
+  <div class="legacy-note">
+    The original desktop app is still available: run <code>python3 app/report_generator_app.py</code>.
+  </div>
+{% endblock %}

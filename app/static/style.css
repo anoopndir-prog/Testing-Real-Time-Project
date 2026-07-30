@@ -1,0 +1,466 @@
+/* Mirrors the color palette used by the Tkinter desktop app
+   (app/ui_common.py) so the browser tool feels like the same product. */
+
+:root {
+  --bg-darkest: #050505;
+  --bg-shiny: #0c0c0c;
+  --box-border: #2a2a2a;
+  --text-main: #d9d9d9;
+  --text-sub: #a3a3a3;
+  --accent-green: #2eea6f;
+  --accent-green-hover: #48f17f;
+  --button-text: #020202;
+  --entry-bg: #101010;
+  --entry-fg: #f0f0f0;
+  --entry-border: #2a2a2a;
+  --error-red: #ff6b6b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--bg-darkest);
+  color: var(--text-main);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+a {
+  color: var(--accent-green);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  padding: 0 16px;
+  background: #0f0f0f;
+  border-bottom: 1px solid #1d1d1d;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.topbar a, .topbar span.brand {
+  color: #e3e3e3;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.topbar a:hover {
+  color: #ffffff;
+}
+
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+.page-title {
+  font-size: 26px;
+  font-weight: bold;
+  color: #e8e8e8;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.page-subtitle {
+  font-size: 13px;
+  color: var(--text-sub);
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.menu-cards {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 420px;
+  max-width: 100%;
+  height: 58px;
+  border-radius: 22px;
+  background: var(--accent-green);
+  color: var(--button-text);
+  font-weight: bold;
+  font-size: 15px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn:hover {
+  background: var(--accent-green-hover);
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 26px;
+}
+
+.btn-row .btn {
+  width: 200px;
+  height: 50px;
+  font-size: 13px;
+}
+
+.btn-secondary {
+  background: #1b1b1b;
+  color: #eaeaea;
+}
+
+.btn-secondary:hover {
+  background: #242424;
+}
+
+.lan-banner {
+  border: 1px solid var(--box-border);
+  background: var(--bg-shiny);
+  border-radius: 12px;
+  padding: 14px 18px;
+  text-align: center;
+  margin: 0 auto 32px;
+  max-width: 560px;
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.lan-banner strong {
+  color: var(--accent-green);
+}
+
+.legacy-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-top: 40px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+}
+
+.field label {
+  font-size: 10px;
+  font-weight: bold;
+  color: #d7d7d7;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.field input[type="text"],
+.field input[type="date"],
+.field input[type="number"],
+.field select {
+  background: var(--entry-bg);
+  color: var(--entry-fg);
+  border: 1px solid var(--entry-border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  min-width: 160px;
+}
+
+.field input:focus, .field select:focus {
+  outline: 1px solid var(--accent-green);
+}
+
+.dropzone {
+  width: 100%;
+  max-width: 720px;
+  min-height: 130px;
+  background: var(--bg-shiny);
+  border: 2px solid var(--box-border);
+  border-top: 2px solid #2f2f2f;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 18px 24px;
+  margin-bottom: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dropzone.dragover {
+  border-color: var(--accent-green);
+  background: #101410;
+}
+
+.dropzone .dz-icon {
+  font-size: 34px;
+  margin-bottom: 6px;
+}
+
+.dropzone .dz-main {
+  color: var(--text-main);
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.dropzone .dz-sub {
+  color: var(--text-sub);
+  font-size: 11px;
+  margin-top: 6px;
+}
+
+.dropzone input[type="file"] {
+  display: none;
+}
+
+.dropzone-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  width: 100%;
+}
+
+.dropzone-row .dropzone {
+  max-width: 353px;
+}
+
+.section-title {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 0 8px;
+}
+
+.section-title h3 {
+  font-size: 13px;
+  color: #d7d7d7;
+  margin: 0;
+}
+
+.distribution-table {
+  width: 100%;
+  max-width: 720px;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+
+.distribution-table th {
+  text-align: left;
+  font-size: 10px;
+  color: var(--text-sub);
+  font-weight: bold;
+  padding: 4px 6px;
+  text-transform: uppercase;
+}
+
+.distribution-table td {
+  padding: 4px 6px;
+}
+
+.distribution-table input[type="text"] {
+  width: 100%;
+}
+
+.distribution-table .remove-row {
+  background: transparent;
+  border: none;
+  color: var(--error-red);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.error-banner {
+  width: 100%;
+  max-width: 720px;
+  background: #2a1010;
+  border: 1px solid #4a1a1a;
+  color: #ff9d9d;
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 13px;
+  margin-bottom: 18px;
+  white-space: pre-wrap;
+}
+
+.seal-photo-crop {
+  width: 100%;
+  max-width: 720px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.seal-photo-hint {
+  font-size: 11px;
+  color: var(--text-sub);
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.seal-photo-canvas-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+
+.seal-photo-canvas-wrap img {
+  display: block;
+  max-width: 100%;
+  max-height: 480px;
+  border: 1px solid var(--box-border);
+  border-radius: 4px;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.seal-photo-box {
+  position: absolute;
+  border: 2px solid var(--accent-green);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+  cursor: move;
+}
+
+.seal-photo-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--accent-green);
+  border: 2px solid #0c0c0c;
+  border-radius: 2px;
+  transform: translate(-50%, -50%);
+}
+
+.seal-photo-handle.nw { top: 0; left: 0; cursor: nwse-resize; }
+.seal-photo-handle.ne { top: 0; left: 100%; cursor: nesw-resize; }
+.seal-photo-handle.sw { top: 100%; left: 0; cursor: nesw-resize; }
+.seal-photo-handle.se { top: 100%; left: 100%; cursor: nwse-resize; }
+
+.seal-photo-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-tiny {
+  width: auto;
+  height: 30px;
+  padding: 0 14px;
+  font-size: 11px;
+}
+
+.photo-cropper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dropzone-compact {
+  min-height: 90px;
+  padding: 12px 16px;
+  max-width: 340px;
+}
+
+.dropzone-compact .dz-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.dropzone-compact .dz-main {
+  font-size: 12px;
+}
+
+.dropzone-compact .dz-sub {
+  font-size: 10px;
+}
+
+.sample-photos-container {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.sample-photo-row {
+  border: 1px solid var(--box-border);
+  background: var(--bg-shiny);
+  border-radius: 6px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.sample-photo-row-title {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--text-main);
+  margin-bottom: 10px;
+}
+
+.sample-photo-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+}
+
+.sample-photo-slot {
+  flex: 1 1 300px;
+  max-width: 340px;
+}
+
+.sample-photo-caption-input {
+  width: 100%;
+  background: var(--entry-bg);
+  color: var(--entry-fg);
+  border: 1px solid var(--entry-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.sample-photo-caption-input:focus {
+  outline: 1px solid var(--accent-green);
+}

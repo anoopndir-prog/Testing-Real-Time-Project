@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Global Testing India{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="brand">Global Testing India</span>
+      <a href="{{ url_for('index') }}">Home</a>
+    </div>
+    <a href="{{ url_for('work_instruction') }}">Download Work Instruction (PDF)</a>
+  </div>
+  <div class="page">
+    {% block content %}{% endblock %}
+  </div>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

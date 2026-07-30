@@ -5,7 +5,26 @@ __pycache__/
 .venv/
 build/
 dist/
-# keep SKFReportGenerator.spec tracked
-!SKFReportGenerator.spec
 *.spec
+# keep SKFReportGenerator.spec tracked (must come after the *.spec
+# exclude above - gitignore negation only takes effect for patterns
+# listed after the rule they're un-excluding)
+!SKFReportGenerator.spec
 output/generated_assets/
+
+# Real customer/test data must never be committed. These folders hold
+# actual SKF test reports and generated output containing customer and
+# project information - they are sample/reference material for developing
+# the tool, not source code, and this repository is not a safe place for
+# them. Keep them local.
+Final Test Report Format/
+output/
+Downloads/
+*.docx
+*.pdf
+*.xlsx
+*.xlsm
+# The blank Word templates the tool fills in are needed by the build and
+# contain no customer data, so they stay tracked (negations must follow
+# the excludes above to take effect).
+!assets/*.docx

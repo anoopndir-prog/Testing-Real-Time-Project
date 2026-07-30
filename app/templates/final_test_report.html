@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Final Test Report{% endblock %}
+{% block content %}
+  <div class="page-title">Final Test Report</div>
+
+  {% if error %}
+    <div class="error-banner">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('final_test_report_generate') }}" enctype="multipart/form-data"
+        data-seal-photo-suggest-url="{{ url_for('final_test_report_seal_photo_suggest') }}"
+        data-detect-samples-url="{{ url_for('final_test_report_detect_samples') }}">
+    <div class="field-row">
+      <div class="field">
+        <label for="report_date">Date</label>
+        <input type="date" id="report_date" name="report_date" value="{{ request.form.get('report_date', today) }}">
+      </div>
+      <div class="field">
+        <label for="project_leader">Project Leader</label>
+        <input type="text" id="project_leader" name="project_leader" value="{{ request.form.get('project_leader', '') }}">
+      </div>
+      <div class="field">
+        <label for="reviewer">Reviewer</label>
+        <input type="text" id="reviewer" name="reviewer" value="{{ request.form.get('reviewer', '') }}">
+      </div>
+      <div class="field">
+        <label for="approved_by">Approved by</label>
+        <input type="text" id="approved_by" name="approved_by" value="{{ request.form.get('approved_by', '') }}">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="reviewer_role">Reviewer Role</label>
+        <select id="reviewer_role" name="reviewer_role">
+          {% for role in reviewer_roles %}
+            <option value="{{ role }}" {% if request.form.get('reviewer_role', reviewer_roles[0]) == role %}selected{% endif %}>{{ role }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="approved_by_role">Approved By Role</label>
+        <select id="approved_by_role" name="approved_by_role">
+          {% for role in approver_roles %}
+            <option value="{{ role }}" {% if request.form.get('approved_by_role', approver_roles[0]) == role %}selected{% endif %}>{{ role }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <label class="dropzone" data-dropzone for="project_spec">
+      <input type="file" id="project_spec" name="project_spec" accept=".pdf,.docx" required>
+      <div class="dz-icon" data-dz-icon>&#128204;</div>
+      <div class="dz-main" data-dz-main>Attach Project Specification here</div>
+      <div class="dz-sub" data-dz-sub>Drag &amp; drop the Project Specification file here or click to browse</div>
+    </label>
+
+    <div class="dropzone-row">
+      <label class="dropzone" data-dropzone for="test_inspection">
+        <input type="file" id="test_inspection" name="test_inspection" accept=".pdf,.docx,.xlsx,.xlsm" required>
+        <div class="dz-icon" data-dz-icon>&#128204;</div>
+        <div class="dz-main" data-dz-main>Attach Test Inspection sheet here</div>
+        <div class="dz-sub" data-dz-sub>Drag &amp; drop the Test Inspection &amp; Execution sheet here or click to browse</div>
+      </label>
+
+      <label class="dropzone" data-dropzone for="monitoring_sheets">
+        <input type="file" id="monitoring_sheets" name="monitoring_sheets" accept=".pdf,.docx,.xlsx,.xlsm" multiple>
+        <div class="dz-icon" data-dz-icon>&#128204;</div>
+        <div class="dz-main" data-dz-main>Attach the Monitoring Sheet</div>
+        <div class="dz-sub" data-dz-sub>Drag &amp; drop one or more Monitoring sheets here or click to browse</div>
+      </label>
+    </div>
+
+    <div class="photo-cropper" data-photo-cropper>
+      <label class="dropzone" data-dropzone for="seal_photo">
+        <input type="file" id="seal_photo" name="seal_photo" accept="image/*" data-seal-photo-input>
+        <div class="dz-icon" data-dz-icon>&#128247;</div>
+        <div class="dz-main" data-dz-main>Attach seal photo here (optional)</div>
+        <div class="dz-sub" data-dz-sub>For section 3.2 &mdash; photograph the seal against a plain background</div>
+      </label>
+
+      <div class="seal-photo-crop" data-seal-photo-crop hidden>
+        <p class="seal-photo-hint">Drag the box's corners to fit it tightly around the seal, then continue filling the form.</p>
+        <div class="seal-photo-canvas-wrap" data-seal-photo-wrap>
+          <img data-seal-photo-img alt="Seal photo preview">
+          <div class="seal-photo-box" data-seal-photo-box>
+            <div class="seal-photo-handle nw" data-handle="nw"></div>
+            <div class="seal-photo-handle ne" data-handle="ne"></div>
+            <div class="seal-photo-handle sw" data-handle="sw"></div>
+            <div class="seal-photo-handle se" data-handle="se"></div>
+          </div>
+        </div>
+        <div class="seal-photo-actions">
+          <button type="button" class="btn btn-secondary btn-tiny" data-seal-photo-redetect>Re-detect</button>
+          <button type="button" class="btn btn-secondary btn-tiny" data-seal-photo-full>Use full photo</button>
+        </div>
+      </div>
+      <input type="hidden" name="seal_photo_left" data-seal-photo-field="left">
+      <input type="hidden" name="seal_photo_top" data-seal-photo-field="top">
+      <input type="hidden" name="seal_photo_right" data-seal-photo-field="right">
+      <input type="hidden" name="seal_photo_bottom" data-seal-photo-field="bottom">
+    </div>
+
+    <div class="section-title">
+      <h3>Before / After Test Photos (optional)</h3>
+    </div>
+    <p class="seal-photo-hint" data-sample-photos-status>Attach the Project Specification and Test Inspection sheet above to detect samples.</p>
+    <div class="sample-photos-container" data-sample-photos-container></div>
+
+    <template data-photo-slot-template>
+      <div class="photo-cropper sample-photo-slot" data-photo-cropper>
+        <label class="dropzone dropzone-compact" data-dropzone>
+          <input type="file" accept="image/*" data-seal-photo-input>
+          <div class="dz-icon" data-dz-icon>&#128247;</div>
+          <div class="dz-main" data-dz-main data-slot-main>Attach photo</div>
+          <div class="dz-sub" data-dz-sub>Click to browse</div>
+        </label>
+        <div class="seal-photo-crop" data-seal-photo-crop hidden>
+          <div class="seal-photo-canvas-wrap" data-seal-photo-wrap>
+            <img data-seal-photo-img alt="">
+            <div class="seal-photo-box" data-seal-photo-box>
+              <div class="seal-photo-handle nw" data-handle="nw"></div>
+              <div class="seal-photo-handle ne" data-handle="ne"></div>
+              <div class="seal-photo-handle sw" data-handle="sw"></div>
+              <div class="seal-photo-handle se" data-handle="se"></div>
+            </div>
+          </div>
+          <div class="seal-photo-actions">
+            <button type="button" class="btn btn-secondary btn-tiny" data-seal-photo-redetect>Re-detect</button>
+            <button type="button" class="btn btn-secondary btn-tiny" data-seal-photo-full>Use full photo</button>
+          </div>
+        </div>
+        <input type="hidden" data-seal-photo-field="left">
+        <input type="hidden" data-seal-photo-field="top">
+        <input type="hidden" data-seal-photo-field="right">
+        <input type="hidden" data-seal-photo-field="bottom">
+      </div>
+    </template>
+
+    <template data-sample-photo-row-template>
+      <div class="sample-photo-row">
+        <div class="sample-photo-row-title" data-row-title></div>
+        <div class="sample-photo-columns" data-row-columns></div>
+      </div>
+    </template>
+
+    <div class="section-title">
+      <h3>Distribution List</h3>
+      <button type="button" class="btn btn-secondary" style="width:auto;height:34px;padding:0 16px;font-size:11px" data-add-distribution-row>Add New</button>
+    </div>
+    <table class="distribution-table">
+      <thead>
+        <tr><th>Name</th><th>Organization</th><th>Location</th><th></th></tr>
+      </thead>
+      <tbody data-distribution-body>
+        <tr>
+          <td><input type="text" name="distribution_name"></td>
+          <td><input type="text" name="distribution_org"></td>
+          <td><input type="text" name="distribution_location"></td>
+          <td><button type="button" class="remove-row" data-remove-row title="Remove row">&times;</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <template data-distribution-row-template>
+      <tr>
+        <td><input type="text" name="distribution_name"></td>
+        <td><input type="text" name="distribution_org"></td>
+        <td><input type="text" name="distribution_location"></td>
+        <td><button type="button" class="remove-row" data-remove-row title="Remove row">&times;</button></td>
+      </tr>
+    </template>
+
+    <div class="btn-row">
+      <button type="submit" class="btn" name="action" value="word">Generate Word</button>
+      <button type="submit" class="btn" name="action" value="pdf">Generate PDF</button>
+      <a class="btn btn-secondary" href="{{ url_for('index') }}">Back</a>
+    </div>
+  </form>
+{% endblock %}

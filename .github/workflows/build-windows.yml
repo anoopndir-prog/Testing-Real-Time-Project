@@ -1,0 +1,72 @@
+# Builds the single-file Windows .exe on a Microsoft-hosted Windows
+# runner, so no Windows PC is needed to produce a release.
+#
+# BEFORE USING THIS: the repository must be PRIVATE. Build logs and
+# artifacts inherit repository visibility - on a public repo, anyone can
+# download the artifact this produces.
+#
+# Run it from the Actions tab ("Run workflow"), then download the .exe
+# from the run's Artifacts section.
+
+name: Build Windows exe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools
+          python -m pip install -r requirements.txt pyinstaller pip-audit bandit
+
+      # Same gate as build_windows_exe.bat. A failing step fails the job,
+      # so a vulnerable build is never published as an artifact.
+      - name: Security gate - dependency vulnerabilities
+        run: pip-audit --progress-spinner off
+
+      - name: Security gate - static analysis
+        run: bandit -r app tools -ll --exclude app/web_app.py
+
+      - name: Build single-file executable
+        run: >
+          pyinstaller --noconfirm --clean --windowed --onefile
+          --name SKF_Report_Generator
+          --version-file version_info.txt
+          --add-data "assets/Project Specification - Template.docx;assets"
+          --add-data "assets/Project Specification - Decision Rule Source.docx;assets"
+          --add-data "assets/Final Test Report - Template.docx;assets"
+          --collect-all tkinterdnd2
+          --collect-all tkcalendar
+          --collect-all babel
+          --exclude-module flask
+          --exclude-module waitress
+          app/report_generator_app.py
+
+      - name: Compute SHA256 checksum
+        run: |
+          certutil -hashfile dist\SKF_Report_Generator.exe SHA256 > dist\SKF_Report_Generator.exe.sha256.txt
+          type dist\SKF_Report_Generator.exe.sha256.txt
+
+      # Note: this artifact is UNSIGNED. Signing in CI needs the
+      # certificate stored as an encrypted repository secret - worth doing
+      # once IT issues one, but do not commit a .pfx to the repo.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SKF_Report_Generator
+          path: |
+            dist/SKF_Report_Generator.exe
+            dist/SKF_Report_Generator.exe.sha256.txt
+          retention-days: 14
